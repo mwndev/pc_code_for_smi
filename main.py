@@ -2,26 +2,15 @@ import cv2
 from matplotlib import pyplot as plt
 import time
 import os
-# cap = cv2.VideoCapture('/dev/video2')
-
-# ret, frame = cap.read()
-
-# print(frame)
-
-# plt.imshow(frame)
+from pymongo import MongoClient
 
 
-# def take_photo():
-#     cap = cv2.VideoCapture('/dev/video2')
-#     ret, frame = cap.read()
-#     print(frame)
-#     cv2.imwrite('wevcc.jpg', frame)
-#     cap.release()
-# take_photo()
+mongLink = os.getenv("MONGO_URI")
+
 
 cap = cv2.VideoCapture('/dev/video2')
-# print("w" + cap.width)
-# print("h" + cap.height)
+
+
 while cap.isOpened():
     ret, frame = cap.read()
     print(len(frame[1]))
