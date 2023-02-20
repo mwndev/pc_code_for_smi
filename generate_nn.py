@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
+import math
 
 # recognise 3d/2d objects
 
@@ -42,7 +43,15 @@ from dotenv import load_dotenv
 
 # turn input image into a black and white image at first
 
+# for loop with floats
+def decimal_range(start, stop, increment):
+    while start < stop:  # and not math.isclose(start, stop): Py>3.5
+        yield start
+        start += increment
+
 # test with cam
+
+
 def generate_fovea_array(black_white_image: list, fovea_pixel_diameter: int):
     img = black_white_image
     rows = len(img)
@@ -59,36 +68,24 @@ def generate_fovea_array(black_white_image: list, fovea_pixel_diameter: int):
     # [[row array], [row array], ...]
     # just define pixels where the fovea exists
 
-    for i in range(0, rows):
-        for j in range(0, horiz_pixels):
-            # img[i][j] is current pixel
-            # print(img[i][j])
-            if (fovea_border_left_index < j < fovea_border_right_index and fovea_border_top_index < i < fovea_border_bottom_index):
-                img[i][j] = True
-                # print(i)
-                # print(j)
-                if (i == 261 and j == 344):
-                    print(img[i][j])
+    for row in range(0, rows):
+        for col in range(0, horiz_pixels):
+            # img[row][col] is current pixel
+            if (fovea_border_left_index < col < fovea_border_right_index and fovea_border_top_index < row < fovea_border_bottom_index):
+                img[row][col] = True
             else:
-                img[i][j] = False
+                img[row][col] = False
 
-    # i have to convert this into an array (or 2) that can take in the image input data
-    # print(img[0])
-    # print("should be false: ")
-    # print(img[1][1])
-    # print(img[239][319])
-    # print("should be true: ")
     return img
 
 
-def generate_layers_1_and_2_from_fovea_array(fovea_array: list, fovea_density: float, fovea_connections: int, periph_density: float, periph_connections: int):
+def generate_layer_1(fovea_array: list, fovea_density: float, fovea_connections: int, periph_density: float, periph_connections: int):
     layer_1 = []
-    layer_2 = []
-    connections = []
 
     for i in range(0, len(fovea_array)):
         for j in range(0, len(fovea_array[i])):
             current_neuron = {
+                # id is coordinate
                 "id":  "x" + str(j) + "y" + str(i) + "z" + str(1),
                 "count": i + j,
                 "activation_lvl": 0,
@@ -101,39 +98,101 @@ def generate_layers_1_and_2_from_fovea_array(fovea_array: list, fovea_density: f
                 "connections_to_next_layer": fovea_connections if fovea_array[i][j] == True else periph_connections,
             }
             layer_1.append(current_neuron)
-    print("layer_1 first neuron" + str(current_neuron))
+    print("layer_1 last neuron" + str(current_neuron))
+    return layer_1
 
-    next_neuron_counter_x = 0
-    next_neuron_counter_y = 0
+# periph factor should be 0.5 because you want a 0.25 as many neurons in the second layer (2D!)
+
+
+def generate_deep_layer(fovea_array, periph_proportion, fovea_proportion):
+
+    current_neuron = {}
+    peripheral_neurons = []
+    fovea_neurons = []
+    neurons = []
+
+    p_next_row = 0
+    p_next_pixel = 0
+
+    # generate periph neurons
+
+    periph_factor = 1 / math.sqrt(periph_proportion)
+
+    for row in decimal_range(0, len(fovea_array), periph_factor):
+        for col in decimal_range(0, float(len(fovea_array[0])), 2):
+            print(col % 1)
+            if (not row % 1 == 0 or not col % 1 == 0):
+                break
+            if (fovea_array[row][col] == True):
+                break
+            current_neuron = {
+                # id is coordinate
+                "id":  "x" + str(col) + "y" + str(row) + "z" + str(1),
+                "count": col + row,
+                "activation_lvl": 0,
+                "negative_y_coordinate": row,
+                "positive_x_coordinate": col,
+                "connections": {
+                    "x0y0z0": 0.8,
+                },
+                "next_layer_absolute_density": 1,
+                "connections_to_next_layer": 9,
+            }
+            peripheral_neurons.append(current_neuron)
+
+    # generate fovea neurons
+
+    fovea_factor = 1 / math.sqrt(fovea_proportion)
+
+    for row in range(0, len(fovea_array), fovea_factor):
+        for col in range(0, len(fovea_array[row])):
+            if (fovea_array[round(row)][round(col)] == False):
+                break
+            current_neuron = {
+                # id is coordinate
+                "id": "x" + str(col) + "y" + str(row) + "z" + str(1),
+                "count": col + row,
+                "activation_lvl": 0,
+                "negative_y_coordinate": row,
+                "positive_x_coordinate": col,
+                "connections": {
+                    "x0y0z0": 0.8
+                },
+                "next_layer_absolute_density": 1,
+                "connections_to_next_layer": 9,
+            }
+            fovea_neurons.append(current_neuron)
+
+    return [fovea_neurons, peripheral_neurons]
 
 
 def return_squares_with_data(fovea_array):
     squares_arr = []
     current_square = {}
     current_pixel = 0
-    for i in range(0, len(fovea_array)):
-        for j in range(0, len(fovea_array[i])):
-            current_pixel = fovea_array[i][j]
+    # for i in range(0, len(fovea_array)):
+    #     for j in range(0, len(fovea_array[i])):
+    #         current_pixel = fovea_array[i][j]
 
-            # find x axis width of square
-            if ("top-right" not in current_square and "top-left" not in current_square):
-                current_square["top-left"] = j
+    #         # find x axis width of square
+    #         if ("top-right" not in current_square and "top-left" not in current_square):
+    #             current_square["top-left"] = j
 
-            if ("top-right" not in current_square):
-                current_square["top_right"] = i
-            elif (current_square["top-right"] < j):
-                current_square["top_right"] = j
+    #         if ("top-right" not in current_square):
+    #             current_square["top_right"] = i
+    #         elif (current_square["top-right"] < j):
+    #             current_square["top_right"] = j
 
-            if "top_left" not in current_square and "type" not in current_square:
-                # corner pixels are [x, y]
-                current_square["top_left"]["x"] = j
-                current_square["top_left"]["y"] = i
-                current_square["type"] = current_pixel
-            elif (current_pixel is not current_square["type"] or j is len(fovea_array[i])):
-                # right end of square
-                break
+    #         if "top_left" not in current_square and "type" not in current_square:
+    #             # corner pixels are [x, y]
+    #             current_square["top_left"]["x"] = j
+    #             current_square["top_left"]["y"] = i
+    #             current_square["type"] = current_pixel
+    #         elif (current_pixel is not current_square["type"] or j is len(fovea_array[i])):
+    #             # right end of square
+    #             break
 
-            # remember to set current_square = {} at end of square
+    #         # remember to set current_square = {} at end of square
 
 
 def find_square_height(top_left: dict, top_right: dict, fovea_array: list, pixel_type):
@@ -153,6 +212,9 @@ def find_square_height(top_left: dict, top_right: dict, fovea_array: list, pixel
                         # return square_height
 
                         # if fovea_array[row][pixel_index] is not pixel_type:
+                        pass
+
+
 load_dotenv()
 
 mongLink = os.getenv('MONGO_URI')
