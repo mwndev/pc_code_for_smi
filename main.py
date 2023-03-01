@@ -25,14 +25,18 @@ while cap.isOpened():
             fovea_array, fovea_density=2, fovea_connections=9, periph_density=0.25, periph_connections=3)
 
         layer_2 = generate_nn.generate_deep_layer(
-            fovea_array, periph_proportion=0.25, fovea_proportion=2)
+            fovea_array, periph_proportion=0.25, fovea_proportion=4)
+        print(len(layer_1))
+        print(layer_1[30000])
+        print(len(layer_2))
+        print(layer_2[10000])
 
     # video feed BW
     cv2.imshow('webcam', gray_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-    time.sleep(0.1)
+    time.sleep(0.01)
 
     frame_counter += 1
 print('end')

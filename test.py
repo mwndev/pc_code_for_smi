@@ -1,3 +1,10 @@
-import generate_nn
+# import generate_nn
+import operator
 
-print(0.25 % 1)
+shit = []
+
+for i in range(1, 10):
+    shit.append([])
+
+for item in shit:
+    print(item)

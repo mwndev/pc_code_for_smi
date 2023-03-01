@@ -2,6 +2,9 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 import math
+import operator
+import bisect
+from mafs import binary_search
 
 # recognise 3d/2d objects
 
@@ -119,10 +122,11 @@ def generate_deep_layer(fovea_array, periph_proportion, fovea_proportion):
     periph_factor = 1 / math.sqrt(periph_proportion)
 
     for row in decimal_range(0, len(fovea_array), periph_factor):
-        for col in decimal_range(0, float(len(fovea_array[0])), 2):
-            print(col % 1)
+        for col in decimal_range(0, float(len(fovea_array[0])), periph_factor):
             if (not row % 1 == 0 or not col % 1 == 0):
                 break
+            row = int(row)
+            col = int(col)
             if (fovea_array[row][col] == True):
                 break
             current_neuron = {
@@ -144,10 +148,11 @@ def generate_deep_layer(fovea_array, periph_proportion, fovea_proportion):
 
     fovea_factor = 1 / math.sqrt(fovea_proportion)
 
-    for row in range(0, len(fovea_array), fovea_factor):
-        for col in range(0, len(fovea_array[row])):
-            if (fovea_array[round(row)][round(col)] == False):
-                break
+    for row in decimal_range(0, len(fovea_array), fovea_factor):
+
+        for col in decimal_range(0, len(fovea_array[math.floor(row)]), fovea_factor):
+            if (fovea_array[math.floor(row)][math.floor(col)] == False):
+                continue
             current_neuron = {
                 # id is coordinate
                 "id": "x" + str(col) + "y" + str(row) + "z" + str(1),
@@ -159,60 +164,53 @@ def generate_deep_layer(fovea_array, periph_proportion, fovea_proportion):
                     "x0y0z0": 0.8
                 },
                 "next_layer_absolute_density": 1,
-                "connections_to_next_layer": 9,
+                "connections_to_next_layer": 25,
             }
             fovea_neurons.append(current_neuron)
 
-    return [fovea_neurons, peripheral_neurons]
+    print('fov neru ')
+    print(len(fovea_neurons))
+
+    return fovea_neurons + peripheral_neurons
 
 
-def return_squares_with_data(fovea_array):
-    squares_arr = []
-    current_square = {}
-    current_pixel = 0
-    # for i in range(0, len(fovea_array)):
-    #     for j in range(0, len(fovea_array[i])):
-    #         current_pixel = fovea_array[i][j]
+def connect_2_layers(from_neurons_array, to_neurons_array, diffusion_factor):
+    # first element of each nested array has to be the y coordinate
+    to_neurons_2d = []
+    y_coordinate_values = []
 
-    #         # find x axis width of square
-    #         if ("top-right" not in current_square and "top-left" not in current_square):
-    #             current_square["top-left"] = j
+    # create sorted array that contains all y coordinate values
+    for iter in range(0, len(to_neurons_array)):
+        to_neuron = to_neurons_array[iter]
+        if (to_neuron["negative_y_coordinate"] not in y_coordinate_values):
+            y_coordinate_values.append(to_neuron["negative_y_coordinate"])
+            y_coordinate_values.sort()
+            # find value in sorted array
+            # bisect.bisect_left()
 
-    #         if ("top-right" not in current_square):
-    #             current_square["top_right"] = i
-    #         elif (current_square["top-right"] < j):
-    #             current_square["top_right"] = j
+    # create array with a row for each y_coordinate value
+    for iter in range(0, len(y_coordinate_values)):
+        to_neurons_2d.append([])
 
-    #         if "top_left" not in current_square and "type" not in current_square:
-    #             # corner pixels are [x, y]
-    #             current_square["top_left"]["x"] = j
-    #             current_square["top_left"]["y"] = i
-    #             current_square["type"] = current_pixel
-    #         elif (current_pixel is not current_square["type"] or j is len(fovea_array[i])):
-    #             # right end of square
-    #             break
+    # put to_neurons into 2d array
+    for iter in range(0, len(to_neurons_array)):
+        to_neuron = to_neurons_array[iter]
+        y_coordinate_index = bisect.bisect_left(
+            y_coordinate_values, to_neuron["negative_y_coordinate"])
+        to_neurons_2d[y_coordinate_index].append(to_neuron)
 
-    #         # remember to set current_square = {} at end of square
+    # sort neurons within rows of 2d array
+    to_neurons_2d.sort(key=operator.itemgetter("positive_x_coordinate"))
 
+    # finds center of neuron connections in to_neurons
+    # TODO edit binary_search to accomodate object
+    for from_neuron in from_neurons_array:
+        row = binary_search(
+            y_coordinate_values,
+            from_neuron["negive_y_coordinate"])
 
-def find_square_height(top_left: dict, top_right: dict, fovea_array: list, pixel_type):
-    max_x_index = len(fovea_array[0]) - 1
-    square_height = 1
-    for row in range(0, len(fovea_array)):
-        for pixel_index in range(top_left["x"], top_right["x"]):
-            current_pixel = fovea_array[row][pixel_index]
-
-            if (current_pixel is pixel_type):
-                if (max_x_index is not pixel_index):
-                    next_pixel = fovea_array[row][pixel_index + 1]
-                    if (next_pixel is not pixel_type):
-
-                        # first condition is for error handling so the script doesn't try to read index 480 which doesn't exist
-                        # if len(fovea_array[0]) is not top_right - 1 and pixel_index is top_right["x"] + 1 and pixel_type is current_pixel:
-                        # return square_height
-
-                        # if fovea_array[row][pixel_index] is not pixel_type:
-                        pass
+        for neuron in to_neurons_2d[row]:
+            binary_search(row, neuron[""])
 
 
 load_dotenv()
