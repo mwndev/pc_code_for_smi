@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import math
 import operator
 import bisect
-from mafs import binary_search
+from mafs import binary_search, binary_search_objarr
 
 # recognise 3d/2d objects
 
@@ -81,6 +81,9 @@ def generate_fovea_array(black_white_image: list, fovea_pixel_diameter: int):
 
     return img
 
+# generates the neurons in the first layer, which get their inputs directly from corresponding pixels?
+# TODO take an opencv line strengthening algo and make the setting of how whether lines get translated into 1 or 0 an output of the ml model
+
 
 def generate_layer_1(fovea_array: list, fovea_density: float, fovea_connections: int, periph_density: float, periph_connections: int):
     layer_1 = []
@@ -105,6 +108,8 @@ def generate_layer_1(fovea_array: list, fovea_density: float, fovea_connections:
     return layer_1
 
 # periph factor should be 0.5 because you want a 0.25 as many neurons in the second layer (2D!)
+
+# deep layers are just non input and non output neurons no big deal yes
 
 
 def generate_deep_layer(fovea_array, periph_proportion, fovea_proportion):
@@ -168,14 +173,15 @@ def generate_deep_layer(fovea_array, periph_proportion, fovea_proportion):
             }
             fovea_neurons.append(current_neuron)
 
-    print('fov neru ')
     print(len(fovea_neurons))
 
     return fovea_neurons + peripheral_neurons
 
+# TODO probably rewrite this whole thing to accomodate the connect_to_from_neurons() function
+
 
 def connect_2_layers(from_neurons_array, to_neurons_array, diffusion_factor):
-    # first element of each nested array has to be the y coordinate
+    # first element of each nested array has to be the y coordinate, secent element the x coordinate
     to_neurons_2d = []
     y_coordinate_values = []
 
@@ -202,15 +208,19 @@ def connect_2_layers(from_neurons_array, to_neurons_array, diffusion_factor):
     # sort neurons within rows of 2d array
     to_neurons_2d.sort(key=operator.itemgetter("positive_x_coordinate"))
 
-    # finds center of neuron connections in to_neurons
-    # TODO edit binary_search to accomodate object
-    for from_neuron in from_neurons_array:
-        row = binary_search(
-            y_coordinate_values,
-            from_neuron["negive_y_coordinate"])
+    # create tuple array of coordinates so that scipy can find the closest 2 points
+    # for neuron in from_neurons_array
 
-        for neuron in to_neurons_2d[row]:
-            binary_search(row, neuron[""])
+    # finds center of neuron connections in to_neurons
+    # for from_neuron in from_neurons_array:
+    #     row_index = binary_search_objarr(
+    #         y_coordinate_values,
+    #         from_neuron["negative_y_coordinate"],
+    #         key="negative_y_coordinate")
+
+    #     for neuron in to_neurons_2d[row_index]:
+    #         col_index = binary_search_objarr(
+    #             row_index, neuron["positive_x_coordinate"], key="positive_x_coordinate")
 
 
 load_dotenv()
